@@ -1,0 +1,271 @@
+'''
+Created on 11-12-23
+@author:   Justin Kamal
+'''
+
+file = 'musicrecplus.txt'
+
+def loadUsers(fileName): 
+    '''loads all users and their preferences from file into dictionary'''
+    userDict = {}
+    file = open(fileName, 'r')
+    for line in file:
+        [user, artists] = line.strip().split(':')
+        userDict[user] = artists.split(',')
+    file.close()
+    return userDict
+
+
+def enterPreferences(userName, userDict): 
+    '''Will prompt user to enter new preferences'''
+    if userName in userDict:
+        prefList = userDict[userName]
+        newPref = input('Enter an artist that you like (Enter to finish):\n')
+        while newPref != '':
+            if newPref.strip().title() not in prefList:
+                prefList.append(newPref.strip().title())
+            else:
+                print('Artist is already in your preferences')
+            newPref = input('Enter an artist that you like (Enter to finish):\n')
+    else:
+        prefList = []
+        newPref = input('Enter an artist that you like (Enter to finish):\n')
+        while newPref != '':
+            if newPref.strip().title() not in prefList:
+                prefList.append(newPref.strip().title())
+            else:
+                print('Artist is already in your preferences')
+            newPref = input('Enter an artist that you like (Enter to finish):\n')
+    prefList.sort()
+    userDict[userName] = prefList
+
+def mostPreferences(userDict): 
+    '''returns the user with the most amount of preferences'''
+    min = 0
+    if userDict == {}:
+        print('Sorry, no user found')
+    else:
+        for user in userDict:
+            if user[-1] != '$':
+                if len(userDict[user]) > min:
+                    min = len(userDict[user])
+                    mostPrefs = user
+        print(mostPrefs)
+        
+
+
+def saveAndQuit(fileName,userDict): 
+    '''writes updated userDict to file'''
+    file = open(fileName, 'w')
+    for user in userDict:
+        prefs = ''
+        for artist in userDict[user]:
+            prefs = prefs + artist + ','
+        prefs = prefs[:-1]
+        file.write(user + ':' + prefs + '\n')
+    file.close()
+
+#############################################################
+#get recommendations function/helper functions
+#############################################################
+
+def numMatches(userInput, artistList):
+    '''Returns the number of matches between the user's
+    artists and the database of artists.'''
+    i = 0
+    j = 0
+    matches = 0
+    while i < len(userInput) and j < len(artistList):
+        if userInput[i] == artistList[j]:
+            matches += 1
+            i += 1
+            j += 1
+        elif userInput[i] < artistList[j]:
+            i += 1
+        else:
+            j += 1
+    return matches
+
+def deleteCopies(userInput, similarUser):
+    '''Returns list that contains the artists from the similar user
+    that are not repeats of the user's input.'''
+    result = []
+    i = 0
+    j = 0
+    while i <= len(userInput) and j < len(similarUser):
+        if i == len(userInput):
+            result = similarUser[j:]
+            break
+        elif userInput[i] == similarUser[j]:
+            i += 1
+            j += 1
+        elif userInput[i] < similarUser[j] and i != (len(userInput)-1):
+            i += 1
+        else:
+            result.append(similarUser[j])
+            j += 1
+    return result
+
+def findBestUser(currUser, prefs, userMap):
+    '''Finds the user whose preferences are the closest to the
+    current user's. Returns the name of that user.'''
+    bestScore = -1
+    for user in userMap:
+        score = numMatches(prefs, userMap[user])
+        if score > bestScore and currUser != user and score != len(userMap[user]) and user[-1] != '$':
+            bestScore = score
+            bestUser = user
+    return bestUser
+
+def getRecommendations(currUser, prefs, userMap):
+    '''Returns a list of recommended artists.'''
+    if len(userMap) > 1:
+        bestUser = findBestUser(currUser, prefs, userMap)
+        recommendations = deleteCopies(prefs, userMap[bestUser])
+        for item in recommendations:
+            print(item)
+    else:
+        print("No recommendations available at this time.")
+
+
+#############################################################
+#show most pop artist function/helper functions
+#############################################################
+def genListArtists(userMap):
+        '''generates list of all artists in dictionary, deletes repeats'''
+        global tempListArtists
+        tempListArtists = []
+        listArtists = []
+        for user in userMap:
+            if user[-1] != '$':
+                tempListArtists += userMap[user]
+        for artist in tempListArtists:
+            if artist not in listArtists:
+                listArtists += [artist]
+        return listArtists
+
+def genDictArtists(userMap):
+    '''generates a dictionary of all list generated by genListArtists, sets
+    their like count as 0'''
+    likeCountArtists = {}
+    for artist in genListArtists(userMap):
+        likeCountArtists[artist] = 0
+    return likeCountArtists
+
+def incrementLikeCount(userMap):
+    '''counts the number of times ("likes") each artist occurs in user preferences'''
+    likeCountArtists = genDictArtists(userMap)
+    for artist in tempListArtists:
+        likeCountArtists[artist] += 1
+    return likeCountArtists
+
+def showPopular(userMap):
+    '''prints the three most popular artists in user preferences'''
+    dictArtistsAndScores = incrementLikeCount(userMap)
+    artistName = ''
+    artistLikes = 0
+    for i in range(3):
+        for artist in dictArtistsAndScores:
+            if dictArtistsAndScores[artist] > artistLikes:
+                artistLikes = dictArtistsAndScores[artist]
+                artistName = artist
+        print(artistName)
+        dictArtistsAndScores[artistName] = 0
+        artistLikes = 0
+        
+def showLikes(userMap):
+    '''returns the number of times the most popular artist occurs in user preferences'''
+    if len(userMap) > 0:
+        dictArtistsAndScores = incrementLikeCount(userMap)
+        artistName = ''
+        artistLikes = 0
+        for artist in dictArtistsAndScores:
+            if dictArtistsAndScores[artist] > artistLikes:
+                artistLikes = dictArtistsAndScores[artist]
+                artistName = artist
+        print(artistLikes)
+    else:
+        print("Sorry, no artists found.")
+
+#----------------------------Bonus--------------------------------------
+
+def deletePreferences(userName, userDict): 
+    '''allows user to delete any of their prefered artists'''
+    artists = userDict[userName]
+    print('Current Preferences: ', artists)
+    deleteArtist = input('Enter an artist you would like to delete (Enter to finish):\n').strip().title()
+    while deleteArtist != '':
+        if deleteArtist in artists:
+            artists = list(filter(lambda a: a != deleteArtist, artists))
+        else:
+            print('Artist is not in your current preferences\n')
+        deleteArtist = input('Enter an artist you would like to delete (Enter to finish):\n').strip().title()
+    userDict[userName] = artists
+
+def showPreferences(userName, userDict):
+    '''shows current user preferences'''
+    print('Here is the list of your current preferences:\n', userDict[userName])
+    
+#-------------------------Main Function---------------------------------
+    
+def main():
+    '''will run the menue loop'''
+    
+    createFile = open(file, 'a')             
+    createFile.close()
+
+    userDict = loadUsers(file)               # Loads users and their preferences into userDict
+
+    userName = input('Enter your name (put a $ symbol after your name if you wish your preferences to remain private): \n').title().strip()
+    if userName not in userDict:
+        print("We don't recognize you in our database. Lets create your preferences:")
+        enterPreferences(userName, userDict)
+
+
+    while 1:
+        choice = input('Enter a letter to choose an option:\ne - Enter preferences\nr - Get recommendations\np - Show most popular artists\nh - How popular is the most popular\nm - Which user has the most likes\nd - Delete Preferences\ns - Show Preferences\nq - Save and quit\n').strip()
+        match choice:
+            case 'e':
+                enterPreferences(userName, userDict)
+
+            case 'r':
+                getRecommendations(userName, userDict[userName], userDict)
+
+            case 'p':
+                showPopular(userDict)
+
+            case 'h':
+                showLikes(userDict)
+
+            case 'm':
+                mostPreferences(userDict)
+
+            case 'd':
+                deletePreferences(userName, userDict)
+
+            case 's':
+                showPreferences(userName, userDict)
+
+            case 'q':
+                saveAndQuit(file, userDict)
+                break
+
+            case default:
+                print('Invalid input')
+
+
+main()              # Call main function
+
+
+        
+
+        
+
+
+                
+        
+
+
+
+
+
